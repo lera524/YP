@@ -15,29 +15,34 @@ from PyQt6.QtCore import (
     QPointF, QRectF, QObject, QTimer
 )
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath('.'), relative_path)
+
 class MusicPlayer:
     def __init__(self):
-        self.player = QMediaPlayer()  # Медиаплеер для воспроизведения музыки
-        self.audio_output = QAudioOutput()  # Аудиовыход
+        self.audio_output = QAudioOutput() 
         self.player.setAudioOutput(self.audio_output)
-        self.current_track = 0  # Текущий трек в плейлисте
-        self.is_playing = False  # Флаг воспроизведения
-        self.playlist = []  # Список треков
-        self.load_playlist()  # Загрузка плейлиста
-        # Подключаем сигнал окончания воспроизведения
+        self.current_track = 0 
+        self.is_playing = False 
+        self.playlist = [] 
+        self.load_playlist() 
         self.player.mediaStatusChanged.connect(self.handle_media_status_changed)
-    def load_playlist(self):# Загружаем все музыкальные файлы из папки songs
-        if not os.path.exists('songs'):
-            os.makedirs('songs')
-        self.playlist = [os.path.join('songs', f) for f in os.listdir('songs')
+    def load_playlist(self):
+        songs_dir = resource_path('songs')
+        if not os.path.exists(songs_dir):
+            os.makedirs(songs_dir)
+        self.playlist = [os.path.join(songs_dir, f) for f in os.listdir(songs_dir)
                         if f.endswith(('.mp3', '.wav'))]
-    def play(self):#начало воспроизведения
+    def play(self):
         if not self.playlist:
             return    
         if not self.is_playing:
             self.is_playing = True
             self.play_current_track()
-    def play_current_track(self):#воспроизводит трек
+    def play_current_track(self):
         if 0 <= self.current_track < len(self.playlist):
             self.player.setSource(QUrl.fromLocalFile(os.path.abspath(self.playlist[self.current_track])))
             self.player.play()
@@ -58,11 +63,12 @@ class MusicPlayer:
     def set_volume(self, volume):#громкость
         self.audio_output.setVolume(volume / 100.0)
 music_player = MusicPlayer()
+
 class MusicButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(45, 45)
-        self.setIcon(QIcon('icons/music_note.png'))
+        self.setIcon(QIcon(resource_path('icons/music_note.png')))
         self.setIconSize(QSize(25, 25))
         self.setCheckable(True)
         self.setChecked(music_player.is_playing)
@@ -127,7 +133,6 @@ class PuzzlePiece(QGraphicsPixmapItem):
             self.setZValue(1)
             self.check_position()
     def mouseMoveEvent(self, event):
-         # При движении мыши, если перетаскиваем и фрагмент не на месте
         if self.dragging and not self.is_placed:
             new_pos = self.mapToScene(event.pos() - self.offset)
             scene_rect = self.scene().sceneRect()
@@ -154,8 +159,6 @@ class GameField(QFrame):
         self.cell_width = width // grid_size
         self.cell_height = height // grid_size
         self.is_puzzle_field = is_puzzle_field
-        
-        # Устанавливаем стиль в зависимости от типа поля
         if is_puzzle_field:
             self.setStyleSheet("""
                 QFrame {
@@ -175,24 +178,16 @@ class GameField(QFrame):
         super().paintEvent(event)
         if self.is_puzzle_field:
             painter = QPainter(self)
-            
-            # Рисуем фоновое изображение с низкой непрозрачностью
             if hasattr(self, 'background_image'):
                 painter.setOpacity(0.2)
                 painter.drawPixmap(self.rect(), self.background_image)
                 painter.setOpacity(1.0)
-
-            # Рисуем сетку
             pen = QPen(QColor("#CCCCCC"))
             pen.setWidth(1)
             painter.setPen(pen)
-
-            # Рисуем горизонтальные линии сетки
             for i in range(1, self.grid_size):
                 y = i * self.cell_height
                 painter.drawLine(0, y, self.width(), y)
-
-            # Рисуем вертикальные линии сетки
             for i in range(1, self.grid_size):
                 x = i * self.cell_width
                 painter.drawLine(x, 0, x, self.height())
@@ -229,8 +224,9 @@ class GameWindow(QWidget):
         self.snap_player = QMediaPlayer()
         self.snap_audio = QAudioOutput()
         self.snap_player.setAudioOutput(self.snap_audio)
-        if os.path.exists('songs/snap.mp3'):
-            self.snap_player.setSource(QUrl.fromLocalFile(os.path.abspath('songs/snap.mp3')))         
+        snap_sound_path = resource_path('snap.mp3')
+        if os.path.exists(snap_sound_path):
+            self.snap_player.setSource(QUrl.fromLocalFile(snap_sound_path))
     
         self.timer.start(1000)  
         self.center_window()
@@ -244,20 +240,15 @@ class GameWindow(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Собери пазл')
-        # минимальный размер окна
         self.setMinimumSize(800, 600)
-        # размер окна на основе размера изображения
         window_width = max(800, self.scaled_image.width() + 300)
         window_height = max(600, self.scaled_image.height() + 200)
         self.resize(window_width, window_height)
         self.setStyleSheet('background-color: LightSlateGray;')
-       
         main_layout = QHBoxLayout()
         main_layout.setSpacing(20)
         self.setLayout(main_layout)
-        # превью и управление
         left_panel = QVBoxLayout()
-        # таймер
         self.timer_label = QLabel("Время: 00:00")
         self.timer_label.setStyleSheet("""
             QLabel {
@@ -272,7 +263,6 @@ class GameWindow(QWidget):
         """)
         self.timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_panel.addWidget(self.timer_label)
-        # изображение
         preview_label = QLabel()
         preview_pixmap = self.original_image.scaled(
             250, 250,
@@ -290,10 +280,8 @@ class GameWindow(QWidget):
         """)
         preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_panel.addWidget(preview_label)
-        # кнопоки управления
         buttons_layout = QVBoxLayout()
         buttons_layout.setSpacing(10)
-        # кнопки масштабирования
         zoom_layout = QHBoxLayout()
         self.zoom_in_btn = QPushButton('+')
         self.zoom_out_btn = QPushButton('-')
@@ -317,22 +305,18 @@ class GameWindow(QWidget):
             """)
             zoom_layout.addWidget(btn)
         
-        self.zoom_in_btn.clicked.connect(lambda: self.zoom(1.2))#увеличение
-        self.zoom_out_btn.clicked.connect(lambda: self.zoom(0.8))#уменьшение
-        # начальное состояние кнопок масштабирования
+        self.zoom_in_btn.clicked.connect(lambda: self.zoom(1.2))
+        self.zoom_out_btn.clicked.connect(lambda: self.zoom(0.8))
         self.update_zoom_buttons()
         buttons_layout.addLayout(zoom_layout)
         buttons_layout.addSpacing(10)
-        # верхний ряд кнопок (музыка и назад)
         top_buttons = QHBoxLayout()
         top_buttons.setSpacing(10)
-        # кнопка музыки
         music_btn = MusicButton()
         top_buttons.addWidget(music_btn)
-        # кнопка назад
         back_btn = QPushButton()
         back_btn.setFixedSize(45, 45)
-        back_btn.setIcon(QIcon('icons/back.png'))
+        back_btn.setIcon(QIcon(resource_path('icons/back.png')))
         back_btn.setIconSize(QSize(25, 25))
         back_btn.setStyleSheet("""
             QPushButton {
@@ -347,12 +331,9 @@ class GameWindow(QWidget):
         """)
         back_btn.clicked.connect(self.handle_back)
         top_buttons.addWidget(back_btn)
-        # верхний ряд кнопок
         buttons_layout.addLayout(top_buttons)
-        # нижний ряд кнопок
         bottom_buttons = QHBoxLayout()
         bottom_buttons.setSpacing(10)
-        # кнопка сначла
         reset_btn = QPushButton("Начать сначала")
         reset_btn.setFixedSize(150, 40)
         reset_btn.setStyleSheet("""
@@ -370,8 +351,6 @@ class GameWindow(QWidget):
         """)
         reset_btn.clicked.connect(self.reset_progress)
         bottom_buttons.addWidget(reset_btn)
-
-        # Кнопка подсказки
         hint_btn = QPushButton('Подсказка')
         hint_btn.setStyleSheet("""
             QPushButton {
@@ -394,8 +373,6 @@ class GameWindow(QWidget):
         hint_btn.setCheckable(True)
         hint_btn.clicked.connect(self.toggle_hint)
         bottom_buttons.addWidget(hint_btn)
-
-        # Добавляем нижний ряд кнопок
         buttons_layout.addLayout(bottom_buttons)
 
         help_text = QLabel(
@@ -441,7 +418,6 @@ class GameWindow(QWidget):
             }
         """)
         
-        # Устанавливаем размер поля в два раза больше размера изображения
         scene_width = self.scaled_image.width() * 2
         scene_height = self.scaled_image.height() * 1.5
         self.scene.setSceneRect(0, 0, scene_width, scene_height)
@@ -457,29 +433,23 @@ class GameWindow(QWidget):
         
         main_layout.addWidget(self.view)
         
-        # инициализируем пазл
         self.initialize_puzzle()
-        # Подгоняем вид под размер поля
         self.adjust_view()
 
     def zoom(self, factor):
-        """Масштабирование игрового поля"""
-        # Проверяем, не выйдет ли новый масштаб за пределы допустимых значений
+        #проверка, не выйдет ли новый масштаб за пределы допустимых значений
         new_zoom = self.zoom_factor * factor
-        # Ограничиваем масштаб
         if 0.5 <= new_zoom <= 2.0:
             self.zoom_factor = new_zoom
             self.view.scale(factor, factor)
-            # Обновляем состояние кнопок после изменения масштаба
             self.update_zoom_buttons()
 
-    def update_zoom_buttons(self):#Обновляет состояние кнопок масштабирования
+    def update_zoom_buttons(self):
         self.zoom_in_btn.setEnabled(self.zoom_factor < 2.0)
         self.zoom_out_btn.setEnabled(self.zoom_factor > 0.5)
 
-    def resizeEvent(self, event):#Обработка изменения размера окна
+    def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Обновляем размер сцены при изменении размера окна
         self.adjust_view()
     def toggle_hint(self, checked):
         self.hint_visible = checked
@@ -498,16 +468,13 @@ class GameWindow(QWidget):
         self.create_new_puzzle()
 
     def create_new_puzzle(self):
-        # точные размеры фрагментов
         piece_width = self.scaled_image.width() // self.grid_size
         piece_height = self.scaled_image.height() // self.grid_size
-        # размеры игрового поля
+  
         scene_width = self.scene.width()
         scene_height = self.scene.height()
-        #область для случайного размещения (правая часть сцены)
         placement_x_start = self.scaled_image.width() + piece_width
         placement_width = scene_width - placement_x_start - piece_width
-        # фрагменты пазла
         for row in range(self.grid_size):
             for col in range(self.grid_size):
                 # вырезаем фрагмент из изображения с точными размерами
@@ -524,24 +491,22 @@ class GameWindow(QWidget):
                     col * piece_width,
                     row * piece_height
                 )
-                # Создаем фрагмент
+                # создание фрагмента
                 piece = PuzzlePiece(
                     piece_pixmap,
                     correct_pos,
                     len(self.pieces),
                     self
                 )
-                # Добавляем фрагмент на сцену
+                # добавление фрагмента на сцену
                 self.scene.addItem(piece)
-                # Пытаемся найти свободное место для фрагмента в правой части сцены
+                # поиск свободного места
                 max_attempts = 50
                 placed = False
                 for _ in range(max_attempts):
-                    # Генерируем случайную позицию в правой части сцены
                     random_x = random.randint(int(placement_x_start), int(scene_width - piece_width))
                     random_y = random.randint(0, int(scene_height - piece_height))
                     new_pos = QPointF(random_x, random_y)
-                    # Проверяем, не перекрывается ли с другими фрагментами
                     overlap = False
                     for existing_piece in self.pieces:
                         if (abs(existing_piece.pos().x() - random_x) < piece_width and
@@ -553,33 +518,27 @@ class GameWindow(QWidget):
                         piece.setPos(new_pos)
                         placed = True
                         break
-                
-                # Если не удалось найти свободное место, размещаем в случайной позиции в правой части
                 if not placed:
                     random_x = random.randint(int(placement_x_start), int(scene_width - piece_width))
                     random_y = random.randint(0, int(scene_height - piece_height))
                     piece.setPos(QPointF(random_x, random_y))
-                
                 self.pieces.append(piece)
 
     def check_completion(self):
-        #Проверка завершения сборки пазла
+        #проверка завершения сборки пазла
         if not self.is_completed and all(piece.is_placed and 
             (piece.pos() - piece.correct_pos).manhattanLength() < 1 for piece in self.pieces):
             self.is_completed = True
             self.timer.stop()
             self.show_completion_message()
 
-    def show_completion_message(self): #Показ сообщения о завершении сборки пазла
-        # Создаем диалоговое окно
+    def show_completion_message(self):
         dialog = QMessageBox(self)
         dialog.setWindowTitle("Поздравляю!")
         minutes = self.elapsed_time // 60
         seconds = self.elapsed_time % 60
         dialog.setText(f"Пазл собран!\nВремя сборки: {minutes:02d}:{seconds:02d}")
         dialog.setIcon(QMessageBox.Icon.Information)
-        
-        # Устанавливаем стиль для диалогового окна
         dialog.setStyleSheet("""
             QMessageBox {
                 background-color: LightSlateGray;
@@ -606,17 +565,15 @@ class GameWindow(QWidget):
             }
         """)
 
-        # Добавляем кнопки
         restart_button = dialog.addButton("Собрать заново", QMessageBox.ButtonRole.ActionRole)
         back_button = dialog.addButton("Назад", QMessageBox.ButtonRole.RejectRole)
         dialog.exec()
-        
         if dialog.clickedButton() == restart_button:
             self.reset_progress()
         elif dialog.clickedButton() == back_button:
             self.close()
 
-    def reset_progress(self):#сброс прогресса и начать заново
+    def reset_progress(self):
         # останавливаем и сбрасываем таймер
         self.timer.stop()
         self.elapsed_time = 0
@@ -633,9 +590,9 @@ class GameWindow(QWidget):
         if self.snap_player.source().isValid():
             self.snap_player.setPosition(0)
             self.snap_player.play()
-    def handle_back(self):#Возврат в предыдущее окно
+    def handle_back(self):
         self.close()
-    def adjust_view(self):#Подгоняет вид под размер поля
+    def adjust_view(self):
         self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
         self.zoom_factor = 1.0
         self.update_zoom_buttons()
@@ -668,7 +625,7 @@ class DifficultyWindow(QWidget):
         top_layout.addWidget(music_btn)
         back_btn = QPushButton()
         back_btn.setFixedSize(45, 45)
-        back_btn.setIcon(QIcon('icons/back.png'))
+        back_btn.setIcon(QIcon(resource_path('icons/back.png')))
         back_btn.setIconSize(QSize(25, 25))
         back_btn.setStyleSheet("""
             QPushButton {
@@ -748,7 +705,7 @@ class BaseThemeWindow(QWidget):
         top_layout.addWidget(music_btn)
         back_btn = QPushButton()
         back_btn.setFixedSize(45, 45)
-        back_btn.setIcon(QIcon('icons/back.png'))
+        back_btn.setIcon(QIcon(resource_path('icons/back.png')))
         back_btn.setIconSize(QSize(25, 25))
         back_btn.setStyleSheet("""
             QPushButton {
@@ -767,10 +724,11 @@ class BaseThemeWindow(QWidget):
         main_layout.addLayout(top_layout)
         grid_layout = QGridLayout()
         grid_layout.setSpacing(20)
-        if not os.path.exists(self.folder_name):
-            os.makedirs(self.folder_name)
+        folder_path = resource_path(self.folder_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
 
-        image_files = [f for f in os.listdir(self.folder_name) 
+        image_files = [f for f in os.listdir(folder_path) 
                       if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
         button_style = """
             QPushButton {
@@ -789,7 +747,7 @@ class BaseThemeWindow(QWidget):
             btn.setStyleSheet(button_style)
 
             if i < len(image_files):
-                img_path = os.path.join(self.folder_name, image_files[i])
+                img_path = os.path.join(folder_path, image_files[i])
                 pixmap = QPixmap(img_path)
                 scaled_pixmap = pixmap.scaled(
                     190, 140,
@@ -808,7 +766,6 @@ class BaseThemeWindow(QWidget):
                         font-size: 16px;
                     }
                 """)
-
             row = i // 3
             col = i % 3
             grid_layout.addWidget(btn, row, col)
@@ -853,7 +810,7 @@ class MainWindow(QWidget):
         top_layout.addWidget(music_btn)
         exit_btn = QPushButton()
         exit_btn.setFixedSize(45, 45)
-        exit_btn.setIcon(QIcon('icons/exit.png'))
+        exit_btn.setIcon(QIcon(resource_path('icons/exit.png')))
         exit_btn.setIconSize(QSize(25, 25))
         exit_btn.setStyleSheet("""
             QPushButton {
@@ -910,9 +867,9 @@ class MainWindow(QWidget):
         self.animals_btn.setStyleSheet(button_style)
         self.animals_btn.clicked.connect(self.show_animals_window)
         buttons_layout.addWidget(self.animals_btn)
-        buttons_layout.addStretch()# Добавляем отступы по краям для кнопок
+        buttons_layout.addStretch()
         buttons_layout.insertStretch(0)
-        main_layout.addLayout(buttons_layout)# Добавляем layout с кнопками в главный layout
+        main_layout.addLayout(buttons_layout)
         main_layout.addStretch()
     def show_landscape_window(self):
         self.landscape_window = LandscapeWindow()
